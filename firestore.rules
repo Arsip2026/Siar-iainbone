@@ -1,0 +1,34 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Admin awal (harus sama dengan ADMIN_AWAL di index.html)
+    function boot() {
+      return request.auth != null && request.auth.token.email.lower() == 'arsiparisiainbone@gmail.com';
+    }
+    function profPath() {
+      return /databases/$(database)/documents/pengguna/$(request.auth.token.email.lower());
+    }
+    function active() {
+      return request.auth != null && exists(profPath()) && get(profPath()).data.get('aktif', true) == true;
+    }
+    function role() { return get(profPath()).data.get('peran', 'editor'); }
+
+    function canRead()  { return boot() || active(); }
+    function canWrite() { return boot() || (active() && role() in ['admin', 'editor']); }
+    function isAdmin()  { return boot() || (active() && role() == 'admin'); }
+
+    match /arsip/{id} {
+      allow read: if canRead();
+      allow create, update: if canWrite() && request.resource.data.nomor is string && request.resource.data.uraian is string;
+      allow delete: if canWrite();
+    }
+    match /meta/{id} {
+      allow read, write: if canWrite();
+    }
+    match /pengguna/{email} {
+      allow get: if request.auth != null && email == request.auth.token.email.lower();
+      allow list, create, update, delete: if isAdmin();
+    }
+  }
+}
