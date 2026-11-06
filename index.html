@@ -309,6 +309,7 @@
       <div class="userchip">
         <button id="btn-users" class="linkbtn" type="button" hidden>Kelola pengguna</button>
         <button id="btn-seed" class="linkbtn" type="button" hidden>Muat 14 arsip awal</button>
+        <button id="btn-sheet" class="linkbtn" type="button" hidden>Sinkronkan ulang ke spreadsheet</button>
       </div>
       <button id="btn-import" class="btn" type="button">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 10V2M4.5 5 8 1.5 11.5 5M3 13.5h10"/></svg>
@@ -1378,8 +1379,49 @@ const fdb = getFirestore(fbApp);
     render();
   }
 
+  /* ---------- Cermin ke Google Sheet (Apps Script) ---------- */
+  var SHEET_URL = '';   /* alamat web app Apps Script (berakhiran /exec); diisi setelah skrip dipasang */
+  var SHEET_TOKEN = 'eqAArJWTDo57KOczn01vdjR-3JWJ16W_';
+  var sheetTimer = null, sheetBusy = false;
+  function isoOf(d) { return d ? d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) : ''; }
+  function sheetPayload() {
+    var rows = state.records.slice().sort(function (a, b) {
+      return String(a.nomor).localeCompare(String(b.nomor), 'id', { numeric: true });
+    }).map(function (r) {
+      return [r.nomor || '', r.uraian || '', r.kategori || '', r.unit || '', parseISO(r.tanggal) ? r.tanggal : '',
+        Number(r.jumlah) || 0, r.media || '', r.lokasi || '', Number(r.retensi) || 0, isoOf(dueDate(r)),
+        r.nasib || '', r.status || '', r.keterangan || '',
+        r.dibuatOlehNama ? r.dibuatOlehNama + ' (' + (r.dibuatOleh || '') + ')' : '', fmtDT(r.createdAt),
+        r.diubahOlehNama ? r.diubahOlehNama + ' (' + (r.diubahOleh || '') + ')' : '', r.updatedAt ? fmtDT(r.updatedAt) : ''];
+    });
+    return { token: SHEET_TOKEN, header: ['Nomor arsip', 'Uraian informasi', 'Kategori', 'Unit pengolah', 'Tanggal arsip', 'Jumlah berkas', 'Media',
+      'Lokasi simpan', 'Retensi (tahun)', 'Jatuh tempo retensi', 'Nasib akhir', 'Status', 'Keterangan',
+      'Diinput oleh', 'Waktu input', 'Terakhir diubah oleh', 'Waktu diubah'], dateCols: [5, 10], rows: rows };
+  }
+  async function pushSheet(manual) {
+    if (!SHEET_URL) { if (manual) toast('Alamat Apps Script belum dipasang di aplikasi.'); return; }
+    if (sheetBusy) { queueSheet(); return; }
+    sheetBusy = true;
+    try {
+      var res = await fetch(SHEET_URL, { method: 'POST', body: JSON.stringify(sheetPayload()) });
+      var j = await res.json();
+      if (manual) toast(j && j.ok ? 'Spreadsheet diperbarui (' + j.rows + ' baris).' : 'Spreadsheet menolak data. Periksa token di Apps Script.');
+    } catch (e) {
+      if (manual) toast('Pengiriman ke spreadsheet gagal. Cek alamat Apps Script dan izin aksesnya.');
+    } finally { sheetBusy = false; }
+  }
+  function queueSheet() {
+    if (!SHEET_URL) return;
+    clearTimeout(sheetTimer);
+    sheetTimer = setTimeout(function () { pushSheet(false); }, 2500);
+  }
+
   async function init() {
     state.store = makeFsStore();
+    ['save', 'saveNew', 'remove', 'resetCounter'].forEach(function (name) {
+      var f = state.store[name];
+      state.store[name] = function () { return f.apply(this, arguments).then(function (r) { queueSheet(); return r; }); };
+    });
     state.unsub = state.store.subscribe(onRecords, function (err) {
       state.loaded = true;
       if (err && (err.code === 'permission-denied' || err.code === 'unauthenticated')) { state.lostAccess = true; state.canWrite = false; }
@@ -1402,6 +1444,7 @@ const fdb = getFirestore(fbApp);
     state.lostAccess = false;
     $('user-name').textContent = acc.pemilik + ' (' + acc.akun + ')';
     $('btn-users').hidden = acc.peran !== 'admin';
+    $('btn-sheet').hidden = acc.peran !== 'admin';
     $('login').hidden = true;
     $('app').hidden = false;
     $('l-pass').value = '';
@@ -1540,11 +1583,13 @@ const fdb = getFirestore(fbApp);
         if (m && +m[1] === new Date().getFullYear()) max = Math.max(max, +m[2]);
       }
       await state.store.setCounter(new Date().getFullYear(), max);
+      queueSheet();
       toast(list.length + ' arsip awal dimuat.');
     } catch (ex) { toast('Gagal memuat data awal.'); }
     finally { btn.disabled = false; }
   }
   $('btn-seed').addEventListener('click', seedData);
+  $('btn-sheet').addEventListener('click', function () { pushSheet(true); });
 
   $('login-form').addEventListener('submit', onLogin);
   $('btn-logout').addEventListener('click', function () { logout(''); });
