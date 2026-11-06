@@ -1402,12 +1402,19 @@ const fdb = getFirestore(fbApp);
     if (!SHEET_URL) { if (manual) toast('Alamat Apps Script belum dipasang di aplikasi.'); return; }
     if (sheetBusy) { queueSheet(); return; }
     sheetBusy = true;
+    var body = JSON.stringify(sheetPayload());
     try {
-      var res = await fetch(SHEET_URL, { method: 'POST', body: JSON.stringify(sheetPayload()) });
+      var res = await fetch(SHEET_URL, { method: 'POST', body: body });
       var j = await res.json();
       if (manual) toast(j && j.ok ? 'Spreadsheet diperbarui (' + j.rows + ' baris).' : 'Spreadsheet menolak data. Periksa token di Apps Script.');
     } catch (e) {
-      if (manual) toast('Pengiriman ke spreadsheet gagal. Cek alamat Apps Script dan izin aksesnya.');
+      /* Jawaban skrip kadang tidak terbaca peramban (CORS), padahal data sampai. Kirim ulang tanpa membaca jawaban. */
+      try {
+        await fetch(SHEET_URL, { method: 'POST', body: body, mode: 'no-cors' });
+        if (manual) toast('Data dikirim ke spreadsheet. Buka sheet "Arsip" untuk memastikan (jawaban skrip tidak bisa dibaca).');
+      } catch (e2) {
+        if (manual) toast('Pengiriman ke spreadsheet gagal. Periksa koneksi internet.');
+      }
     } finally { sheetBusy = false; }
   }
   function queueSheet() {
