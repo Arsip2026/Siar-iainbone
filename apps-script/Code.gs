@@ -5,6 +5,8 @@
  */
 var TOKEN = 'eqAArJWTDo57KOczn01vdjR-3JWJ16W_';
 var NAMA_SHEET = 'Arsip';
+var ID_SPREADSHEET = '1nyQtnwcBo-MH1u-20wg6e7hTOSR0WpZEF9KQ4SLnkj4';
+var BACKUP_MAKS = 10; // jumlah sheet cadangan yang disimpan
 
 function out_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
@@ -14,6 +16,19 @@ function safe_(v) {
   // Cegah teks yang diawali = + - @ dibaca sebagai rumus.
   if (typeof v === 'string' && /^[=+\-@]/.test(v)) return "'" + v;
   return v;
+}
+
+// Salin sheet Arsip ke sheet "Cadangan <tanggal jam>" sebelum ditimpa, lalu hapus cadangan yang terlalu lama.
+function cadangkan_(ss, sh) {
+  var nama = 'Cadangan ' + Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd HH.mm.ss');
+  var c = sh.copyTo(ss);
+  c.setName(nama);
+  c.setTabColor('#999999');
+  var semua = ss.getSheets().map(function (x) { return x.getName(); })
+    .filter(function (n) { return n.indexOf('Cadangan ') === 0; }).sort();
+  while (semua.length > BACKUP_MAKS) {
+    ss.deleteSheet(ss.getSheetByName(semua.shift()));
+  }
 }
 
 function doGet() {
@@ -27,8 +42,11 @@ function doPost(e) {
     var d = JSON.parse(e.postData.contents);
     if (d.token !== TOKEN) return out_({ ok: false, error: 'token' });
     var head = d.header, rows = d.rows || [];
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var ss = SpreadsheetApp.openById(ID_SPREADSHEET);
     var sh = ss.getSheetByName(NAMA_SHEET) || ss.insertSheet(NAMA_SHEET);
+    // Cadangkan bila data berkurang drastis (reset atau hapus massal).
+    var ada = Math.max(0, sh.getLastRow() - 1);
+    if (ada > 0 && (rows.length === 0 || rows.length < ada * 0.5)) cadangkan_(ss, sh);
     sh.clearContents();
     var all = [head].concat(rows.map(function (r) { return r.map(safe_); }));
     sh.getRange(1, 1, all.length, head.length).setValues(all);
