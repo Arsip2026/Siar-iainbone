@@ -1597,7 +1597,7 @@ const fdb = getFirestore(fbApp);
     var find = function (re) { for (var i = 0; i < ps.length; i++) if (re.test(txt(ps[i]))) return ps[i]; return null; };
     var E = find(/^Dengan ini menyatakan/i), H1 = find(/^Pihak Pertama \(Yang/i), H2 = find(/^Pihak Kedua \(Yang/i);
     var K = find(/^Ketentuan peminjaman/i), D = find(/^Demikian Berita Acara/i), S = find(/^Dibuat di/i);
-    var cs = getComputedStyle(E || D || ps[0]);
+    var refEl = E || D || ps[0], cs = getComputedStyle((refEl.querySelector('span') || refEl));
     var base = 'font-family:' + cs.fontFamily + ';font-size:' + cs.fontSize + ';color:' + cs.color + ';line-height:1.4;';
     var mk = function (html, css) { var x = document.createElement('div'); x.setAttribute('style', base + (css || '')); x.innerHTML = html; return x; };
     var between = function (a, b) { var out = [], n = a; while (n && n !== b) { out.push(n); n = n.nextSibling; } return n === b ? out : null; };
@@ -1611,6 +1611,14 @@ const fdb = getFirestore(fbApp);
         if (kn.nodeName === 'P') { kn.style.marginLeft = '92px'; kn.style.marginRight = '0'; }
         if (kn === ps[0]) break;
         kn = kn.previousElementSibling;
+      }
+      /* Logo: tempatkan persis di kiri atas kop, sejajar dengan keempat baris. */
+      var p0 = ps[0], lg = p0 && p0.querySelector('img');
+      if (lg) {
+        var el = lg;
+        while (el.parentElement && el.parentElement !== p0) el = el.parentElement;
+        p0.style.position = 'relative';
+        el.style.cssText += ';position:absolute;left:-88px;top:3px;margin:0;float:none;transform:none;z-index:1;';
       }
       var gr = document.createElement('div');
       gr.setAttribute('style', 'border-bottom:3.7px solid #000;margin:6px 0 0;height:0;');
