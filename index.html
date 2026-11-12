@@ -235,6 +235,27 @@
   .field .hint { font-size: 12.5px; color: var(--muted); }
   .formerr { margin: 12px 20px 0; padding: 9px 12px; border: 1px solid var(--bad); background: var(--bad-soft); color: var(--bad); border-radius: 4px; font-weight: 500; }
 
+  /* Berita Acara Peminjaman */
+  .sheet.bap { max-width: 980px; }
+  .bap-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 14px 20px !important; }
+  .bap-bar h2 { font-size: 18px; }
+  .bap-bar .acts { display: flex; gap: 8px; }
+  #bap-msg { padding: 12px 20px; color: var(--muted); }
+  #bap-doc { overflow-x: auto; padding: 0 0 12px; }
+  .ba-sec { margin: 16px 0 8px; font-size: 14px; font-weight: 700; }
+  .ba-pick { display: grid; gap: 6px; max-height: 190px; overflow-y: auto; border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; }
+  .ba-pick label { display: flex; gap: 8px; align-items: flex-start; font-size: 13.5px; }
+  .ba-pick input { margin-top: 3px; }
+  .ba-exist { display: grid; gap: 6px; }
+  .ba-exist .it { display: flex; justify-content: space-between; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; font-size: 13.5px; }
+  @page { size: A4; margin: 0; }
+  @media print {
+    body.ba-printing > :not(#bap) { display: none !important; }
+    body.ba-printing #bap { position: static; display: block !important; background: none; padding: 0; overflow: visible; }
+    body.ba-printing #bap .sheet { box-shadow: none; border: 0; max-width: none; margin: 0; background: none; }
+    body.ba-printing .bap-bar, body.ba-printing #bap-msg { display: none !important; }
+  }
+
   .toast {
     position: fixed; z-index: 30; left: 50%; transform: translateX(-50%);
     bottom: calc(18px + env(safe-area-inset-bottom, 0px)); max-width: calc(100% - 32px);
@@ -389,6 +410,41 @@
   </div>
 </div>
 
+<div class="overlay" id="ba" hidden>
+  <div class="sheet wide" role="dialog" aria-modal="true" aria-labelledby="ba-title">
+    <header><h2 id="ba-title">Berita Acara Peminjaman</h2></header>
+    <div class="formerr" id="ba-err" role="alert" hidden></div>
+    <div class="body">
+      <div id="ba-exist"></div>
+      <h3 class="ba-sec">Arsip yang dipinjam</h3>
+      <div class="ba-pick" id="ba-pick"></div>
+      <h3 class="ba-sec">Pihak Pertama (Yang Meminjamkan / Pengelola Arsip)</h3>
+      <div class="grid"><div class="field"><label for="b1-nama">Nama</label><input id="b1-nama" autocomplete="off"></div><div class="field"><label for="b1-nip">NIP / NIK</label><input id="b1-nip" autocomplete="off"></div><div class="field"><label for="b1-jabatan">Jabatan</label><input id="b1-jabatan" autocomplete="off"></div><div class="field full"><label for="b1-unit">Unit Kerja</label><input id="b1-unit" autocomplete="off"></div></div>
+      <h3 class="ba-sec">Pihak Kedua (Yang Meminjam)</h3>
+      <div class="grid"><div class="field"><label for="b2-nama">Nama</label><input id="b2-nama" autocomplete="off"></div><div class="field"><label for="b2-nip">NIP / NIK</label><input id="b2-nip" autocomplete="off"></div><div class="field"><label for="b2-jabatan">Jabatan</label><input id="b2-jabatan" autocomplete="off"></div><div class="field full"><label for="b2-unit">Unit Kerja</label><input id="b2-unit" autocomplete="off"></div></div>
+      <p id="ba-info" style="margin-top:12px"></p>
+    </div>
+    <footer>
+      <button type="button" class="btn" id="ba-close">Tutup</button>
+      <button type="button" class="btn primary" id="ba-save">Simpan dan pratinjau</button>
+    </footer>
+  </div>
+</div>
+
+<div class="overlay" id="bap" hidden>
+  <div class="sheet bap" role="dialog" aria-modal="true" aria-labelledby="bap-title">
+    <header class="bap-bar">
+      <h2 id="bap-title">Pratinjau Berita Acara</h2>
+      <div class="acts">
+        <button type="button" class="btn primary" id="bap-print" disabled>Cetak</button>
+        <button type="button" class="btn" id="bap-close">Tutup</button>
+      </div>
+    </header>
+    <p id="bap-msg" role="status"></p>
+    <div id="bap-doc"></div>
+  </div>
+</div>
+
 <div class="overlay" id="usr" hidden>
   <div class="sheet small" role="dialog" aria-modal="true" aria-labelledby="usr-title">
     <header><h2 id="usr-title">Kelola pengguna</h2></header>
@@ -439,6 +495,8 @@
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx-preview@0.3.3/dist/docx-preview.min.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
@@ -479,7 +537,7 @@ const fdb = getFirestore(fbApp);
   };
   var state = {
     records: [], loaded: false, status: 'Semua', kategori: 'Semua', sort: 'baru', q: '',
-    overdueOnly: false, canWrite: false, user: null, store: null, editing: null, dl: browserDL, lostAccess: false, unsub: null
+    overdueOnly: false, canWrite: false, user: null, store: null, editing: null, dl: browserDL, lostAccess: false, unsub: null, ba: [], unsubBa: null
   };
 
   var $ = function (id) { return document.getElementById(id); };
@@ -695,7 +753,8 @@ const fdb = getFirestore(fbApp);
         '<div class="sub">' + (over ? 'Lewat retensi · ' : '') + esc(r.nasib || '') + '</div>'
       : '<div class="sub">–</div>';
     var act = state.canWrite
-      ? '<button type="button" class="rowbtn" data-act="edit" data-id="' + esc(r.id) + '">Ubah</button>' +
+      ? (r.status === 'Dipinjam' ? '<button type="button" class="rowbtn" data-act="ba" data-id="' + esc(r.id) + '">Berita Acara</button>' : '') +
+        '<button type="button" class="rowbtn" data-act="edit" data-id="' + esc(r.id) + '">Ubah</button>' +
         '<button type="button" class="rowbtn del" data-act="del" data-id="' + esc(r.id) + '">Hapus</button>'
       : '';
     return '<tr>' +
@@ -869,14 +928,18 @@ const fdb = getFirestore(fbApp);
     showErr('');
     $('btn-save').disabled = true;
     try {
+      var goBA = data.status === 'Dipinjam' && (!existing || existing.status !== 'Dipinjam');
       if (existing) {
-        await state.store.save(state.editing, data);
+        var eid = state.editing;
+        await state.store.save(eid, data);
         closeForm();
         toast('Perubahan disimpan.');
+        if (goBA) openBA(Object.assign({}, existing, data, { id: eid }));
       } else {
         var nomor = await state.store.saveNew(data);
         closeForm();
         toast('Arsip ditambahkan dengan nomor ' + nomor + '.');
+        if (goBA) openBA(Object.assign({}, data, { id: nomor, nomor: nomor }));
       }
     } catch (err) {
       showErr(err && err.code === 'busy' ? 'Server sedang sibuk memberi nomor. Coba simpan lagi.' : describe(err));
@@ -1345,6 +1408,8 @@ const fdb = getFirestore(fbApp);
     else if (!$('modal').hidden) closeForm();
     else if (!$('imp').hidden) closeImp();
     else if (!$('reset').hidden) closeReset();
+    else if (!$('bap').hidden) $('bap').hidden = true;
+    else if (!$('ba').hidden) $('ba').hidden = true;
   });
   $('list').addEventListener('click', function (e) {
     var b = e.target.closest('[data-act]');
@@ -1354,6 +1419,7 @@ const fdb = getFirestore(fbApp);
       var r = state.records.find(function (x) { return x.id === id; });
       if (r) openForm(r);
     } else if (act === 'del') askDelete(id);
+    else if (act === 'ba') { var rb = state.records.find(function (x) { return x.id === id; }); if (rb) openBA(rb); }
     else if (act === 'add-empty') openForm(null);
     else if (act === 'reset') {
       state.status = 'Semua'; state.kategori = 'Semua'; state.q = ''; state.overdueOnly = false;
@@ -1365,6 +1431,227 @@ const fdb = getFirestore(fbApp);
     if (e.target.id === 'toggle-overdue') { state.status = state.status === 'DAUM' ? 'Semua' : 'DAUM'; renderTabs(); renderNotices(); renderList(); }
     if (e.target.id === 'clear-contoh') askClearExamples();
   });
+
+  /* ---------- Berita Acara Peminjaman ---------- */
+  var HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+  var BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+  var ROMAWI = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+  var LAMA_PINJAM_HARI = 7;
+  var PIHAK = [['nama', 'Nama'], ['nip', 'NIP / NIK'], ['jabatan', 'Jabatan'], ['unit', 'Unit Kerja']];
+  var baCur = null, baPicked = {}, baBusy = false, baCurDoc = null;
+
+  function addDays(d, n) { var x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate() + n); return x; }
+  function tglPanjang(d) { return d.getDate() + ' ' + BULAN[d.getMonth()] + ' ' + d.getFullYear(); }
+  function isoToDate(iso) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || ''); return m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(); }
+  function baErr(msg) { var e = $('ba-err'); e.textContent = msg || ''; e.hidden = !msg; }
+
+  function lastPihak1() {
+    var l = state.ba.slice().sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); })[0];
+    return l && l.pihak1 ? l.pihak1 : null;
+  }
+  function openBA(rec) {
+    if (!rec || !state.canWrite) return;
+    baCur = rec; baPicked = {}; baPicked[rec.id] = rec;
+    var p1 = lastPihak1() || {};
+    PIHAK.forEach(function (k) { $('b1-' + k[0]).value = p1[k[0]] || ''; $('b2-' + k[0]).value = ''; });
+    baErr('');
+    renderBaExist(); renderBaPick();
+    var now = new Date();
+    $('ba-info').textContent = 'Nomor surat diberikan otomatis saat disimpan. Tanggal peminjaman ' + tglPanjang(now) +
+      ', batas pengembalian ' + tglPanjang(addDays(now, LAMA_PINJAM_HARI)) + '.';
+    lastFocus = document.activeElement;
+    $('ba').hidden = false;
+    $('b2-nama').focus();
+  }
+  function renderBaPick() {
+    var seen = {}, list = [baCur];
+    seen[baCur.id] = true;
+    state.records.forEach(function (r) { if (r.status === 'Dipinjam' && !seen[r.id]) { seen[r.id] = true; list.push(r); } });
+    $('ba-pick').innerHTML = list.map(function (r) {
+      return '<label><input type="checkbox" data-ba-pick="' + esc(r.id) + '"' + (baPicked[r.id] ? ' checked' : '') + '><span><strong>' +
+        esc(r.nomor) + '</strong> · ' + esc(r.uraian) + '</span></label>';
+    }).join('');
+    baPickList = list;
+  }
+  var baPickList = [];
+  function renderBaExist() {
+    if (!baCur) return;
+    var mine = state.ba.filter(function (b) { return (b.arsip || []).some(function (a) { return a.nomor === baCur.nomor; }); })
+      .sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); });
+    $('ba-exist').innerHTML = mine.length
+      ? '<h3 class="ba-sec" style="margin-top:4px">Berita Acara yang sudah dibuat untuk arsip ini</h3><div class="ba-exist">' + mine.map(function (b) {
+          return '<div class="it"><span><strong>' + esc(b.nomorTampil) + '</strong> · ' + esc(tglPanjang(isoToDate(b.tanggalISO))) +
+            ' · ' + esc((b.pihak2 || {}).nama || '') + '</span><button type="button" class="rowbtn" data-ba-view="' + esc(b.id) + '">Pratinjau / Cetak</button></div>';
+        }).join('') + '</div>'
+      : '';
+  }
+
+  async function saveBA() {
+    if (baBusy) return;
+    var items = baPickList.filter(function (r) { return baPicked[r.id]; });
+    if (!items.length) return baErr('Pilih minimal satu arsip yang dipinjam.');
+    var p1 = {}, p2 = {};
+    for (var i = 0; i < PIHAK.length; i++) {
+      var k = PIHAK[i][0];
+      p1[k] = $('b1-' + k).value.trim(); p2[k] = $('b2-' + k).value.trim();
+      if (!p1[k]) return baErr('Isi ' + PIHAK[i][1] + ' Pihak Pertama.');
+      if (!p2[k]) return baErr('Isi ' + PIHAK[i][1] + ' Pihak Kedua.');
+    }
+    if (!state.user) return baErr('Sesi login berakhir. Muat ulang halaman, lalu masuk lagi.');
+    baBusy = true; $('ba-save').disabled = true; baErr('');
+    try {
+      var now = new Date(), year = now.getFullYear(), field = 'y' + year;
+      var metaRef = doc(fdb, 'meta', 'ba'), newRef = doc(collection(fdb, 'peminjaman'));
+      var data = {
+        tahun: year, bulan: now.getMonth() + 1, tanggalISO: isoOf(now), batasISO: isoOf(addDays(now, LAMA_PINJAM_HARI)),
+        arsip: items.map(function (r) {
+          return { id: r.id, nomor: r.nomor || '', uraian: r.uraian || '', tanggal: r.tanggal || '', jumlah: Number(r.jumlah) || 1, keterangan: r.keterangan || '' };
+        }),
+        pihak1: p1, pihak2: p2, dibuatOleh: state.user.akun, dibuatOlehNama: state.user.pemilik, createdAt: Date.now()
+      };
+      /* Nomor surat memakai penghitung sendiri, tidak terpengaruh status arsip yang berubah kemudian. */
+      await runTransaction(fdb, async function (tx) {
+        var s = await tx.get(metaRef);
+        var n = (s.exists() && Number(s.data()[field])) || 0;
+        n++;
+        data.urut = n;
+        data.nomorTampil = ('000' + n).slice(-3) + '/BA-PA/' + ROMAWI[now.getMonth()] + '/' + year;
+        var o = {}; o[field] = n;
+        tx.set(metaRef, o, { merge: true });
+        tx.set(newRef, data);
+      });
+      data.id = newRef.id;
+      $('ba').hidden = true;
+      showBA(data);
+    } catch (ex) {
+      baErr(describe(ex));
+    } finally { baBusy = false; $('ba-save').disabled = false; }
+  }
+
+  function normKey(s) { return String(s).replace(/\s+/g, ' ').trim().toLowerCase(); }
+  function applyRepl(nodes, m) {
+    var pos = 0, placed = false;
+    for (var i = 0; i < nodes.length; i++) {
+      var n = nodes[i], a = pos, b = pos + n.data.length;
+      pos = b;
+      if (b <= m.s || a >= m.e) continue;
+      var from = Math.max(m.s, a) - a, to = Math.min(m.e, b) - a;
+      n.data = n.data.slice(0, from) + (placed ? '' : m.v) + n.data.slice(to);
+      placed = true;
+    }
+  }
+  /* Mengganti [penanda] meski terpecah ke beberapa potongan teks (run) di dalam satu paragraf. */
+  function replaceInTree(root, map) {
+    var paras = root.nodeName === 'P' ? [root] : Array.prototype.slice.call(root.querySelectorAll('p'));
+    paras.forEach(function (p) {
+      var w = document.createTreeWalker(p, NodeFilter.SHOW_TEXT), nodes = [], t;
+      while ((t = w.nextNode())) nodes.push(t);
+      var full = nodes.map(function (n) { return n.data; }).join('');
+      var re = /\[([^\[\]]+)\]/g, ms = [], m;
+      while ((m = re.exec(full))) {
+        var k = normKey(m[1]);
+        if (Object.prototype.hasOwnProperty.call(map, k)) ms.push({ s: m.index, e: m.index + m[0].length, v: String(map[k]) });
+      }
+      for (var i = ms.length - 1; i >= 0; i--) applyRepl(nodes, ms[i]);
+    });
+  }
+  function setFirstCell(tr, text) {
+    var td = tr.querySelector('td, th');
+    if (!td) return;
+    var w = document.createTreeWalker(td, NodeFilter.SHOW_TEXT), t, first = true;
+    while ((t = w.nextNode())) { if (first) { t.data = text; first = false; } else t.data = ''; }
+  }
+  function fillBA(root, ba) {
+    var d = isoToDate(ba.tanggalISO), batas = isoToDate(ba.batasISO), p1 = ba.pihak1 || {}, p2 = ba.pihak2 || {};
+    var tpl = null;
+    root.querySelectorAll('tr').forEach(function (tr) { if (!tpl && /\[\s*nomor arsip\s*\]/i.test(tr.textContent)) tpl = tr; });
+    if (tpl) {
+      (ba.arsip || []).forEach(function (a, i) {
+        var c = tpl.cloneNode(true), tg = parseISO(a.tanggal);
+        setFirstCell(c, (i + 1) + '.');
+        replaceInTree(c, {
+          'nomor arsip': a.nomor, 'uraian informasi': a.uraian, 'tahun arsip': tg ? tg.getFullYear() : '-',
+          '1 berkas': (a.jumlah || 1) + ' berkas', 'keterangan': a.keterangan || '-'
+        });
+        tpl.parentNode.insertBefore(c, tpl);
+      });
+      tpl.parentNode.removeChild(tpl);
+    }
+    replaceInTree(root, {
+      'nomor surat': ('000' + ba.urut).slice(-3), 'bulan saat peminjaman': ROMAWI[d.getMonth()], 'tahun': d.getFullYear(),
+      'nama hari': HARI[d.getDay()], 'tanggal': d.getDate(), 'bulan': BULAN[d.getMonth()],
+      'nama petugas/pejabat arsip': p1.nama, 'nomor induk / ktp petugas arsip': p1.nip,
+      'jabatan petugas arsip': p1.jabatan, 'nama unit/bagian petugas arsip': p1.unit,
+      'nama peminjam': p2.nama, 'nomor induk / ktp peminjam': p2.nip, 'jabatan peminjam': p2.jabatan, 'nama unit/bagian peminjam': p2.unit,
+      'tanggal peminjaman': tglPanjang(d), 'lama peminjaman': tglPanjang(batas), 'tanggal bulan tahun': tglPanjang(d),
+      'nama pihak kedua': p2.nama, 'nama pihak pertama': p1.nama,
+      'nip / nik pihak kedua': p2.nip, 'nip / nik pihak pertama': p1.nip
+    });
+  }
+  async function loadTemplate() {
+    if (!SHEET_URL) throw new Error('Alamat Apps Script belum dipasang di aplikasi.');
+    var res = await fetch(SHEET_URL + '?action=template&token=' + encodeURIComponent(SHEET_TOKEN));
+    var j = await res.json();
+    if (!j || !j.ok) throw new Error('Template tidak bisa dibaca: ' + ((j && j.error) || 'jawaban kosong'));
+    var bin = atob(j.b64), buf = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+    return buf.buffer;
+  }
+  async function showBA(ba) {
+    baCurDoc = null;
+    var host = $('bap-doc');
+    $('bap-print').disabled = true;
+    $('bap-msg').textContent = 'Memuat template Berita Acara dari Google Drive…';
+    $('bap-msg').hidden = false;
+    host.innerHTML = '';
+    lastFocus = lastFocus || document.activeElement;
+    $('bap').hidden = false;
+    try {
+      if (!window.docx || !window.docx.renderAsync) throw new Error('Pustaka pratinjau dokumen belum termuat. Periksa koneksi internet, lalu coba lagi.');
+      var buf = await loadTemplate();
+      var root = host.shadowRoot || host.attachShadow({ mode: 'open' });
+      root.innerHTML = '';
+      var st = document.createElement('style');
+      st.textContent = '.docx-wrapper{background:#e6e6e6;padding:20px 0 0}@media print{.docx-wrapper{background:none!important;padding:0!important}' +
+        '.docx-wrapper>section.docx{box-shadow:none!important;margin:0!important}}';
+      var stDoc = document.createElement('div'), body = document.createElement('div');
+      root.appendChild(st); root.appendChild(stDoc); root.appendChild(body);
+      await window.docx.renderAsync(buf, body, stDoc, { className: 'docx', inWrapper: true, breakPages: true, useBase64URL: true, ignoreLastRenderedPageBreak: true });
+      fillBA(body, ba);
+      baCurDoc = ba;
+      $('bap-title').textContent = 'Berita Acara ' + ba.nomorTampil;
+      $('bap-msg').hidden = true;
+      $('bap-print').disabled = false;
+    } catch (ex) {
+      $('bap-msg').textContent = 'Berita Acara tersimpan dengan nomor ' + ba.nomorTampil + ', tetapi pratinjaunya gagal dibuat. ' + (ex && ex.message ? ex.message : '') +
+        ' Buka kembali dari tombol "Berita Acara" pada arsip untuk mencoba lagi.';
+    }
+  }
+  function printBA() {
+    if (!baCurDoc) return;
+    document.body.classList.add('ba-printing');
+    var done = function () { document.body.classList.remove('ba-printing'); window.removeEventListener('afterprint', done); };
+    window.addEventListener('afterprint', done);
+    window.print();
+    setTimeout(function () { if (document.body.classList.contains('ba-printing')) done(); }, 1500);
+  }
+  $('ba-close').addEventListener('click', function () { $('ba').hidden = true; });
+  $('ba-save').addEventListener('click', saveBA);
+  $('ba').addEventListener('mousedown', function (e) { if (e.target === $('ba')) $('ba').hidden = true; });
+  $('ba-pick').addEventListener('change', function (e) {
+    var id = e.target && e.target.getAttribute && e.target.getAttribute('data-ba-pick');
+    if (!id) return;
+    var r = baPickList.find(function (x) { return x.id === id; });
+    if (e.target.checked && r) baPicked[id] = r; else delete baPicked[id];
+  });
+  $('ba-exist').addEventListener('click', function (e) {
+    var id = e.target && e.target.getAttribute && e.target.getAttribute('data-ba-view');
+    if (!id) return;
+    var b = state.ba.find(function (x) { return x.id === id; });
+    if (b) { $('ba').hidden = true; showBA(b); }
+  });
+  $('bap-close').addEventListener('click', function () { $('bap').hidden = true; });
+  $('bap-print').addEventListener('click', printBA);
 
   /* ---------- Mulai ---------- */
   render();
@@ -1429,6 +1716,10 @@ const fdb = getFirestore(fbApp);
       var f = state.store[name];
       state.store[name] = function () { return f.apply(this, arguments).then(function (r) { queueSheet(); return r; }); };
     });
+    state.unsubBa = onSnapshot(collection(fdb, 'peminjaman'), function (snap) {
+      state.ba = snap.docs.map(function (d) { return Object.assign({}, d.data(), { id: d.id }); });
+      if (!$('ba').hidden) renderBaExist();
+    }, function () { /* tanpa izin: daftar BA kosong */ });
     state.unsub = state.store.subscribe(onRecords, function (err) {
       state.loaded = true;
       if (err && (err.code === 'permission-denied' || err.code === 'unauthenticated')) { state.lostAccess = true; state.canWrite = false; }
@@ -1459,6 +1750,8 @@ const fdb = getFirestore(fbApp);
   }
   function cleanupSession() {
     if (state.unsub) { try { state.unsub(); } catch (e) { /* abaikan */ } state.unsub = null; }
+    if (state.unsubBa) { try { state.unsubBa(); } catch (e) { /* abaikan */ } state.unsubBa = null; }
+    $('ba').hidden = true; $('bap').hidden = true; state.ba = [];
     started = false; state.user = null; state.records = []; state.loaded = false; state.canWrite = false;
     if (!$('modal').hidden) closeForm();
     if (!$('confirm').hidden) closeConfirm();

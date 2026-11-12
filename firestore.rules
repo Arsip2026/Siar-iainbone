@@ -26,6 +26,11 @@ service cloud.firestore {
     match /meta/{id} {
       allow read, write: if canWrite();
     }
+    match /peminjaman/{id} {
+      allow read: if canRead();
+      allow create: if canWrite() && request.resource.data.nomorTampil is string;
+      allow update, delete: if isAdmin();
+    }
     match /pengguna/{email} {
       allow get: if request.auth != null && email == request.auth.token.email.lower();
       allow list, create, update, delete: if isAdmin();

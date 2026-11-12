@@ -13,3 +13,8 @@ Aplikasi web satu halaman (index.html) dengan Firebase Authentication dan Cloud 
 2. Authentication > Users: buat akun `arsiparisiainbone@gmail.com` (admin awal) dengan password.
 3. Pasang ke Firebase Hosting atau unggah ke hosting statis lain.
 4. Masuk sebagai admin, klik "Muat 14 arsip awal" dan "Kelola pengguna" untuk menambah tim.
+
+## Berita Acara Peminjaman
+- Template: file Drive `BA-PEMINJAMAN.docx` (ID di `TEMPLATE_ID` pada `apps-script/Code.gs`). Setiap kali dipratinjau, template dibaca ulang dari Drive sehingga perubahan pada file ikut berlaku.
+- Setelah mengubah `Code.gs`: jalankan fungsi `izin` sekali, lalu Terapkan > Kelola deployment > Versi baru.
+- Setelah mengubah `firestore.rules`: tempel ke Firebase Console > Firestore > Rules > Publish.

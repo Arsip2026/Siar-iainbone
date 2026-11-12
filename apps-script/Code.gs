@@ -31,7 +31,26 @@ function cadangkan_(ss, sh) {
   }
 }
 
-function doGet() {
+var TEMPLATE_ID = '1ZpOpqiBixogOzltd1xNDgelFs7NQOuLb'; // BA-PEMINJAMAN.docx (atau Google Docs) di Drive
+var DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+// Jalankan fungsi ini sekali dari editor untuk memberi izin membaca template di Drive.
+function izin() {
+  Logger.log(DriveApp.getFileById(TEMPLATE_ID).getName());
+}
+
+function doGet(e) {
+  var p = (e && e.parameter) || {};
+  if (p.action === 'template') {
+    if (p.token !== TOKEN) return out_({ ok: false, error: 'token' });
+    try {
+      var f = DriveApp.getFileById(TEMPLATE_ID);
+      var blob = f.getMimeType() === 'application/vnd.google-apps.document' ? f.getAs(DOCX) : f.getBlob();
+      return out_({ ok: true, name: f.getName(), modified: f.getLastUpdated().getTime(), b64: Utilities.base64Encode(blob.getBytes()) });
+    } catch (err) {
+      return out_({ ok: false, error: String(err) });
+    }
+  }
   return out_({ ok: true, info: 'SIAR sinkron aktif' });
 }
 
