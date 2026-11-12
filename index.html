@@ -1603,6 +1603,20 @@ const fdb = getFirestore(fbApp);
     var between = function (a, b) { var out = [], n = a; while (n && n !== b) { out.push(n); n = n.nextSibling; } return n === b ? out : null; };
     var v = function (x) { return esc(x && String(x).trim() ? x : '-'); };
 
+    /* 0. Kop surat: beri ruang untuk logo di kiri dan munculkan garis bawah kop (garis gambar di template tidak ikut terbaca). */
+    var email = find(/^email:/i);
+    if (email) {
+      var kn = email;
+      while (kn) {
+        if (kn.nodeName === 'P') { kn.style.marginLeft = '92px'; kn.style.marginRight = '0'; }
+        if (kn === ps[0]) break;
+        kn = kn.previousElementSibling;
+      }
+      var gr = document.createElement('div');
+      gr.setAttribute('style', 'border-bottom:3.7px solid #000;margin:6px 0 0;height:0;');
+      email.parentNode.insertBefore(gr, email.nextSibling);
+    }
+
     /* 1. Identitas Pihak Pertama dan Pihak Kedua */
     if (H1 && H2 && E && H1.parentNode === E.parentNode) {
       var rm = between(H1, E);
