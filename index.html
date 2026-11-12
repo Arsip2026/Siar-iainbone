@@ -1610,7 +1610,7 @@ const fdb = getFirestore(fbApp);
     if (email) {
       var kn = email;
       while (kn) {
-        if (kn.nodeName === 'P') { kn.style.marginLeft = '92px'; kn.style.marginRight = '0'; }
+        if (kn.nodeName === 'P') { kn.style.marginLeft = '92px'; kn.style.marginRight = '0'; if (kn !== ps[0]) { kn.style.position = 'relative'; kn.style.zIndex = '1'; } }
         if (kn === ps[0]) break;
         kn = kn.previousElementSibling;
       }
@@ -1620,7 +1620,8 @@ const fdb = getFirestore(fbApp);
         var el = lg;
         while (el.parentElement && el.parentElement !== p0) el = el.parentElement;
         p0.style.position = 'relative';
-        el.style.cssText += ';position:absolute;left:-88px;top:-2px;margin:0;float:none;transform:scale(0.82);transform-origin:top left;z-index:1;';
+        el.style.cssText += ';position:absolute;left:-90px;top:-6px;margin:0;float:none;transform:scale(1.12);transform-origin:top left;z-index:-1;';
+        p0.style.zIndex = '0';
       }
       var gr = document.createElement('div');
       gr.setAttribute('style', 'border-bottom:3.7px solid #000;margin:6px 0 0;height:0;position:relative;z-index:3;');
