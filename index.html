@@ -1587,6 +1587,73 @@ const fdb = getFirestore(fbApp);
       'nama pihak kedua': p2.nama, 'nama pihak pertama': p1.nama,
       'nip / nik pihak kedua': p2.nip, 'nip / nik pihak pertama': p1.nip
     });
+    try { rapikanBA(root, ba); } catch (e) { /* jika gagal, tampilkan apa adanya */ }
+  }
+  /* Merapikan bagian yang tab/indentasinya tidak terbaca oleh pratinjau: identitas para pihak, ketentuan, dan tanda tangan. */
+  function rapikanBA(root, ba) {
+    var p1 = ba.pihak1 || {}, p2 = ba.pihak2 || {}, d = isoToDate(ba.tanggalISO);
+    var ps = Array.prototype.slice.call(root.querySelectorAll('p'));
+    var txt = function (n) { return String(n.textContent || '').replace(/\s+/g, ' ').trim(); };
+    var find = function (re) { for (var i = 0; i < ps.length; i++) if (re.test(txt(ps[i]))) return ps[i]; return null; };
+    var E = find(/^Dengan ini menyatakan/i), H1 = find(/^Pihak Pertama \(Yang/i), H2 = find(/^Pihak Kedua \(Yang/i);
+    var K = find(/^Ketentuan peminjaman/i), D = find(/^Demikian Berita Acara/i), S = find(/^Dibuat di/i);
+    var cs = getComputedStyle(E || D || ps[0]);
+    var base = 'font-family:' + cs.fontFamily + ';font-size:' + cs.fontSize + ';color:' + cs.color + ';line-height:1.4;';
+    var mk = function (html, css) { var x = document.createElement('div'); x.setAttribute('style', base + (css || '')); x.innerHTML = html; return x; };
+    var between = function (a, b) { var out = [], n = a; while (n && n !== b) { out.push(n); n = n.nextSibling; } return n === b ? out : null; };
+    var v = function (x) { return esc(x && String(x).trim() ? x : '-'); };
+
+    /* 1. Identitas Pihak Pertama dan Pihak Kedua */
+    if (H1 && H2 && E && H1.parentNode === E.parentNode) {
+      var rm = between(H1, E);
+      if (rm) {
+        var blok = function (judul, p) {
+          var rows = [['Nama', p.nama], ['NIP / NIK', p.nip], ['Jabatan', p.jabatan], ['Unit Kerja', p.unit]].map(function (r) {
+            return '<div style="display:grid;grid-template-columns:105px 14px 1fr;margin-left:30px;"><span>' + r[0] + '</span><span>:</span><span>' + v(r[1]) + '</span></div>';
+          }).join('');
+          return '<div style="font-weight:700;margin:0 0 3px;">' + esc(judul) + '</div>' + rows;
+        };
+        var w = mk(blok(txt(H1), p1) + '<div style="height:12px"></div>' + blok(txt(H2), p2), 'margin:6px 0 12px;');
+        E.parentNode.insertBefore(w, E);
+        rm.forEach(function (n) { n.parentNode.removeChild(n); });
+      }
+    }
+
+    /* 2. Ketentuan peminjaman */
+    if (K && D && K.parentNode === D.parentNode) {
+      var mid = between(K.nextSibling, D);
+      if (mid) {
+        var items = mid.filter(function (n) { return n.nodeType === 1 && txt(n); });
+        var html = items.map(function (n, i) {
+          var c = n.cloneNode(true);
+          c.removeAttribute('class'); c.removeAttribute('style');
+          var h = c.innerHTML.replace(/^(\s*(<[^>]+>)*)\s*\d+[.)]\s*/, '$1');
+          return '<div style="display:grid;grid-template-columns:24px 1fr;margin:0 0 3px;"><span>' + (i + 1) + '.</span><span style="text-align:justify;">' + h + '</span></div>';
+        }).join('');
+        var kw = mk(html, 'margin:2px 0 0 4px;');
+        D.parentNode.insertBefore(kw, D);
+        mid.forEach(function (n) { n.parentNode.removeChild(n); });
+        K.style.margin = '10px 0 4px';
+        D.style.margin = '14px 0 0';
+      }
+    }
+
+    /* 3. Tempat, tanggal, dan tanda tangan */
+    if (S) {
+      var m = /Dibuat di\W*(\S.*)$/i.exec(txt(S)), tempat = m ? m[1].replace(/Pada tanggal.*$/i, '').trim() : 'Watampone';
+      var par = S.parentNode, rest = between(S, null) || [];
+      var ttd = function (peran, p) {
+        return '<div style="text-align:center;"><div>' + peran + '</div><div style="height:78px"></div>' +
+          '<div style="font-weight:700;text-decoration:underline;">' + v(p.nama) + '</div><div>NIP/NIK. ' + v(p.nip) + '</div></div>';
+      };
+      var sig = mk(
+        '<div style="margin:14px 0 0 52%;display:grid;grid-template-columns:100px 14px 1fr;"><span>Dibuat di</span><span>:</span><span>' + esc(tempat || 'Watampone') + '</span>' +
+        '<span>Pada tanggal</span><span>:</span><span>' + esc(tglPanjang(d)) + '</span></div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:18px;break-inside:avoid;">' +
+        ttd('Pihak Kedua (Peminjam),', p2) + ttd('Pihak Pertama (Pengelola Arsip),', p1) + '</div>', 'margin-bottom:8px;');
+      par.appendChild(sig);
+      rest.forEach(function (n) { if (n.parentNode === par && n !== sig) par.removeChild(n); });
+    }
   }
   async function loadTemplate() {
     if (!SHEET_URL) throw new Error('Alamat Apps Script belum dipasang di aplikasi.');
