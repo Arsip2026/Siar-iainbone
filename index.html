@@ -1515,7 +1515,7 @@ const fdb = getFirestore(fbApp);
         var n = (s.exists() && Number(s.data()[field])) || 0;
         n++;
         data.urut = n;
-        data.nomorTampil = ('000' + n).slice(-3) + '/BA-PA/' + ROMAWI[now.getMonth()] + '/' + year;
+        data.nomorTampil = ('0000' + n).slice(-4) + '/BA-PA/' + ROMAWI[now.getMonth()] + '/' + year;
         var o = {}; o[field] = n;
         tx.set(metaRef, o, { merge: true });
         tx.set(newRef, data);
@@ -1578,7 +1578,7 @@ const fdb = getFirestore(fbApp);
       tpl.parentNode.removeChild(tpl);
     }
     replaceInTree(root, {
-      'nomor surat': ('000' + ba.urut).slice(-3), 'bulan saat peminjaman': ROMAWI[d.getMonth()], 'tahun': d.getFullYear(),
+      'nomor surat': ('0000' + ba.urut).slice(-4), 'bulan saat peminjaman': ROMAWI[d.getMonth()], 'tahun': d.getFullYear(),
       'nama hari': HARI[d.getDay()], 'tanggal': d.getDate(), 'bulan': BULAN[d.getMonth()],
       'nama petugas/pejabat arsip': p1.nama, 'nomor induk / ktp petugas arsip': p1.nip,
       'jabatan petugas arsip': p1.jabatan, 'nama unit/bagian petugas arsip': p1.unit,
